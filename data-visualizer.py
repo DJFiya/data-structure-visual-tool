@@ -1,67 +1,157 @@
 import tkinter as tk
+import tkinter.ttk as ttk
 import ast
 
 class DataVisualizer:
     def __init__(self, root):
         self.root = root
-        self.root.title("Data Structure Visual Tool")
+        self.root.title("Python Data Visualizer")
+        self.root.configure(bg="#1e1e2f")
 
         # Input Frame
-        self.input_frame = tk.Frame(root)
-        self.input_frame.pack(pady=10)
+        self.input_frame = tk.Frame(root, bg="#2c2c3e", bd=0)
+        self.input_frame.pack(pady=20, padx=20, fill="x")
 
-        tk.Label(self.input_frame, text="Value (Python syntax):").grid(row=0, column=0)
-        self.value_entry = tk.Entry(self.input_frame, width=40)
-        self.value_entry.grid(row=0, column=1)
+        self._add_label_entry("Value (Python syntax):", 0)
+        self.value_entry = self._add_entry(0)
 
-        tk.Label(self.input_frame, text="Type (optional):").grid(row=1, column=0)
-        self.type_entry = tk.Entry(self.input_frame, width=40)
-        self.type_entry.grid(row=1, column=1)
+        self._add_label_entry("Type:", 1)
+        self.type_var = tk.StringVar(value="str")
 
-        self.submit_btn = tk.Button(self.input_frame, text="Visualize", command=self.visualize)
-        self.submit_btn.grid(row=2, columnspan=2, pady=5)
+        allowed_types = ["int", "float", "str", "list", "tuple", "set", "dict", "bool"]
+
+        self.type_combobox = ttk.Combobox(
+            self.input_frame, textvariable=self.type_var,
+            values=allowed_types, state="readonly",
+            font=("Segoe UI", 10), width=15
+        )
+        self.type_combobox.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+
+        self.submit_btn = tk.Button(
+            self.input_frame, text="Visualize", command=self.visualize,
+            bg="#3b82f6", fg="white", activebackground="#2563eb", activeforeground="white",
+            font=("Segoe UI", 11, "bold"), relief="flat", bd=0, padx=10, pady=6, cursor="hand2"
+        )
+        self.submit_btn.grid(row=2, columnspan=2, pady=14)
 
         # Canvas
-        self.canvas = tk.Canvas(root, width=600, height=400, bg="white")
+        self.canvas_frame = tk.Frame(root, bg="#1e1e2f")
+        self.canvas_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        self.canvas = tk.Canvas(
+            self.canvas_frame, width=720, height=460,
+            bg="#ffffff", bd=0, highlightthickness=0, relief="flat"
+        )
         self.canvas.pack()
+
+    def _add_label_entry(self, text, row):
+        label = tk.Label(
+            self.input_frame, text=text, bg="#2c2c3e", fg="#f1f1f1", font=("Segoe UI", 10)
+        )
+        label.grid(row=row, column=0, padx=10, pady=5, sticky="e")
+
+    def _add_entry(self, row):
+        entry = tk.Entry(
+            self.input_frame, width=40, font=("Segoe UI", 10),
+            bg="#ffffff", fg="#000000", relief="flat", bd=3, highlightthickness=1,
+            highlightbackground="#cccccc", highlightcolor="#3b82f6"
+        )
+        entry.grid(row=row, column=1, padx=10, pady=5, sticky="w")
+        return entry
 
     def visualize(self):
         self.canvas.delete("all")
 
-        value_text = self.value_entry.get()
-        type_hint = self.type_entry.get().strip().lower()
+        raw_value = self.value_entry.get().strip()
+        type_hint = self.type_var.get().strip().lower()
 
-        try:
-            value = ast.literal_eval(value_text)
-        except Exception as e:
-            self.canvas.create_text(300, 200, text=f"Error parsing value: {e}", fill="red", font=("Arial", 14))
-            return
+        allowed_types = {
+            "int": int,
+            "float": float,
+            "str": str,
+            "list": list,
+            "tuple": tuple,
+            "set": set,
+            "dict": dict,
+            "bool": bool,
+        }
 
-        # Determine type if not explicitly given
-        value_type = type_hint if type_hint else type(value).__name__
+        if not type_hint or type_hint not in allowed_types:
+            value = raw_value
+            value_type = "str"
+        else:
+            converter = allowed_types[type_hint]
+            try:
+                if type_hint == "bool":
+                    raw = raw_value.lower().strip()
+                    if raw in ("", "false", "none"):
+                        value = False
+                    else:
+                        try:
+                            numeric = float(raw)
+                            value = numeric != 0
+                        except ValueError:
+                            value = True
+                elif type_hint in ("list", "tuple", "set"):
+                    stripped = raw_value.strip("[](){}")
+                    parts = [part.strip() for part in stripped.split(",") if part.strip()]
+                    if type_hint == "list":
+                        value = parts
+                    elif type_hint == "tuple":
+                        value = tuple(parts)
+                    else: 
+                        value = set(parts)
+                elif type_hint == "dict":
+                    stripped = raw_value.strip("{}")
+                    pairs = [pair.strip() for pair in stripped.split(",") if pair.strip()]
+                    d = {}
+                    for pair in pairs:
+                        if ":" in pair:
+                            k, v = pair.split(":", 1)
+                            d[k.strip()] = v.strip()
+                    value = d
+                elif type_hint == "int":
+                    try:
+                        value = int(raw_value)
+                    except ValueError:
+                        f = float(raw_value)
+                        value = int(f)
+                    except ValueError as e:
+                        raise e
+                else:
+                    value = converter(raw_value)
+            except Exception as e:
+                self._show_error(f"Cannot typecast entered value. Please enter a valid {type_hint} value.")
+                return
+            value_type = type_hint
 
-        # Dispatch drawing based on inferred type
         draw_fn = getattr(self, f"draw_{value_type}", self.draw_default)
         draw_fn(value, value_type)
 
-    # Primitive and fallback drawer
-    def draw_default(self, value, value_type):
-        self.canvas.create_rectangle(150, 150, 450, 250, fill="lightgray", outline="black")
-        self.canvas.create_text(300, 180, text=f"Type: {value_type}", font=("Arial", 14, "bold"))
-        self.canvas.create_text(300, 220, text=f"Value: {str(value)}", font=("Arial", 12))
+    def _show_error(self, msg):
+        self.canvas.create_text(
+            360, 230, text=msg, fill="#ef4444", font=("Segoe UI", 13, "bold"), justify="center"
+        )
 
-    # Specialized drawer for list
+    def draw_default(self, value, value_type):
+        self.canvas.create_rectangle(220, 180, 500, 270, fill="#f3f4f6", outline="#d1d5db", width=2)
+        self.canvas.create_text(360, 205, text=f"Type: {value_type}", font=("Segoe UI", 13, "bold"))
+        self.canvas.create_text(360, 240, text=f"Value: {str(value)}", font=("Segoe UI", 11))
+
     def draw_list(self, value, value_type):
-        self.canvas.create_text(300, 50, text=f"Type: {value_type}", font=("Arial", 14, "bold"))
-        start_x = 50
+        self.canvas.create_text(360, 40, text=f"Type: {value_type}", font=("Segoe UI", 13, "bold"))
+
+        start_x = 60
         y = 150
         box_width = 60
-
-        for i, item in enumerate(value):
+        max_boxes = min(len(value), 10)
+        for i, item in enumerate(value[:max_boxes]):
             x0 = start_x + i * (box_width + 10)
             x1 = x0 + box_width
-            self.canvas.create_rectangle(x0, y, x1, y + 60, fill="lightblue")
-            self.canvas.create_text((x0 + x1)//2, y + 30, text=str(item), font=("Arial", 12))
+            self.canvas.create_rectangle(x0, y, x1, y + 60, fill="#bfdbfe", outline="#1d4ed8", width=2)
+            self.canvas.create_text((x0 + x1)//2, y + 30, text=str(item), font=("Segoe UI", 11))
+        if len(value) > max_boxes:
+            self.canvas.create_text(x1 + 40, y + 30, text="...", font=("Segoe UI", 16))
 
     def draw_tuple(self, value, value_type):
         self.draw_list(value, "tuple")
@@ -70,13 +160,12 @@ class DataVisualizer:
         self.draw_list(list(value), "set")
 
     def draw_dict(self, value, value_type):
-        self.canvas.create_text(300, 50, text="Type: dict", font=("Arial", 14, "bold"))
-        y = 100
+        self.canvas.create_text(360, 40, text="Type: dict", font=("Segoe UI", 13, "bold"))
+        y = 80
         for i, (k, v) in enumerate(value.items()):
-            self.canvas.create_rectangle(100, y + i * 50, 500, y + 40 + i * 50, fill="lightyellow")
-            self.canvas.create_text(300, y + 20 + i * 50, text=f"{k} : {v}", font=("Arial", 12))
+            self.canvas.create_rectangle(100, y + i * 50, 600, y + 40 + i * 50, fill="#fef9c3", outline="#ca8a04", width=2)
+            self.canvas.create_text(350, y + 20 + i * 50, text=f"{k} : {v}", font=("Segoe UI", 11))
 
-# Entry point
 if __name__ == "__main__":
     root = tk.Tk()
     app = DataVisualizer(root)
