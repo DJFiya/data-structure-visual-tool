@@ -18,7 +18,7 @@ class DataVisualizer:
         self._add_label_entry("Type:", 1)
         self.type_var = tk.StringVar(value="str")
 
-        allowed_types = ["int", "float", "str", "list", "tuple", "set", "dict", "bool"]
+        allowed_types = ["int", "float", "str", "list", "tuple", "set", "dict", "bool", "linkedlist", "stack", "queue"]
 
         self.type_combobox = ttk.Combobox(
             self.input_frame, textvariable=self.type_var,
@@ -38,8 +38,13 @@ class DataVisualizer:
         self.canvas_frame = tk.Frame(root, bg="#1e1e2f")
         self.canvas_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
+        self.canvas_width = 1440
+        self.canvas_height = 640
+        self.center_x = self.canvas_width // 2
+        self.center_y = self.canvas_height // 2
+
         self.canvas = tk.Canvas(
-            self.canvas_frame, width=720, height=460,
+            self.canvas_frame, width=1440, height=self.canvas_height,
             bg="#ffffff", bd=0, highlightthickness=0, relief="flat"
         )
         self.canvas.pack()
@@ -75,76 +80,77 @@ class DataVisualizer:
             "dict": dict,
             "bool": bool,
         }
-
-        if not type_hint or type_hint not in allowed_types:
-            value = raw_value
-            value_type = "str"
-        else:
+        if type_hint in allowed_types:
             converter = allowed_types[type_hint]
-            try:
-                if type_hint == "bool":
-                    raw = raw_value.lower().strip()
-                    if raw in ("", "false", "none"):
-                        value = False
-                    else:
-                        try:
-                            numeric = float(raw)
-                            value = numeric != 0
-                        except ValueError:
-                            value = True
-                elif type_hint in ("list", "tuple", "set"):
-                    stripped = raw_value.strip("[](){}")
-                    parts = [part.strip() for part in stripped.split(",") if part.strip()]
-                    if type_hint == "list":
-                        value = parts
-                    elif type_hint == "tuple":
-                        value = tuple(parts)
-                    else: 
-                        value = set(parts)
-                elif type_hint == "dict":
-                    stripped = raw_value.strip("{}")
-                    pairs = [pair.strip() for pair in stripped.split(",") if pair.strip()]
-                    d = {}
-                    for pair in pairs:
-                        if ":" in pair:
-                            k, v = pair.split(":", 1)
-                            d[k.strip()] = v.strip()
-                    value = d
-                elif type_hint == "int":
-                    try:
-                        value = int(raw_value)
-                    except ValueError:
-                        f = float(raw_value)
-                        value = int(f)
-                    except ValueError as e:
-                        raise e
+        try:
+            if type_hint == "bool":
+                raw = raw_value.lower().strip()
+                if raw in ("", "false", "none"):
+                    value = False
                 else:
-                    value = converter(raw_value)
-            except Exception as e:
-                self._show_error(f"Cannot typecast entered value. Please enter a valid {type_hint} value.")
-                return
-            value_type = type_hint
+                    try:
+                        numeric = float(raw)
+                        value = numeric != 0
+                    except ValueError:
+                        value = True
+            elif type_hint in ("list", "tuple", "set"):
+                stripped = raw_value.strip("[](){}")
+                parts = [part.strip() for part in stripped.split(",") if part.strip()]
+                if type_hint == "list":
+                    value = parts
+                elif type_hint == "tuple":
+                    value = tuple(parts)
+                else: 
+                    value = set(parts)
+            elif type_hint == "dict":
+                stripped = raw_value.strip("{}")
+                pairs = [pair.strip() for pair in stripped.split(",") if pair.strip()]
+                d = {}
+                for pair in pairs:
+                    if ":" in pair:
+                        k, v = pair.split(":", 1)
+                        d[k.strip()] = v.strip()
+                value = d
+            elif type_hint == "int":
+                try:
+                    value = int(raw_value)
+                except ValueError:
+                    f = float(raw_value)
+                    value = int(f)
+                except ValueError as e:
+                    raise e
+            elif type_hint in ("linkedlist", "stack", "queue"):
+                stripped = raw_value.strip("[](){}")
+                parts = [part.strip() for part in stripped.split(",") if part.strip()]
+                value = parts
+            else:
+                value = converter(raw_value)
+        except Exception as e:
+            self._show_error(f"Cannot typecast entered value. Please enter a valid {type_hint} value.")
+            return
+        value_type = type_hint
 
         draw_fn = getattr(self, f"draw_{value_type}", self.draw_default)
         draw_fn(value, value_type)
 
     def _show_error(self, msg):
         self.canvas.create_text(
-            360, 230, text=msg, fill="#ef4444", font=("Segoe UI", 13, "bold"), justify="center"
+            self.center_x, 230, text=msg, fill="#ef4444", font=("Segoe UI", 20, "bold"), justify="center"
         )
 
     def draw_default(self, value, value_type):
-        self.canvas.create_rectangle(220, 180, 500, 270, fill="#f3f4f6", outline="#d1d5db", width=2)
-        self.canvas.create_text(360, 205, text=f"Type: {value_type}", font=("Segoe UI", 13, "bold"))
-        self.canvas.create_text(360, 240, text=f"Value: {str(value)}", font=("Segoe UI", 11))
+        self.canvas.create_rectangle(self.center_x - 140, 180, self.center_x + 140, 270, fill="#f3f4f6", outline="#d1d5db", width=2)
+        self.canvas.create_text(self.center_x, 205, text=f"Type: {value_type}", font=("Segoe UI", 13, "bold"))
+        self.canvas.create_text(self.center_x, 240, text=f"Value: {str(value)}", font=("Segoe UI", 11))
 
     def draw_list(self, value, value_type):
-        self.canvas.create_text(360, 40, text=f"Type: {value_type}", font=("Segoe UI", 13, "bold"))
+        self.canvas.create_text(self.center_x, 40, text=f"Type: {value_type}", font=("Segoe UI", 20, "bold"))
 
-        start_x = 60
-        y = 150
         box_width = 60
-        max_boxes = min(len(value), 10)
+        y = self.center_y - box_width // 2
+        max_boxes = min(len(value), 12)
+        total_width = max_boxes * (box_width + 10) - 10
+        start_x = self.center_x - total_width // 2
         for i, item in enumerate(value[:max_boxes]):
             x0 = start_x + i * (box_width + 10)
             x1 = x0 + box_width
@@ -160,11 +166,90 @@ class DataVisualizer:
         self.draw_list(list(value), "set")
 
     def draw_dict(self, value, value_type):
-        self.canvas.create_text(360, 40, text="Type: dict", font=("Segoe UI", 13, "bold"))
+        self.canvas.create_text(self.center_x, 40, text="Type: dict", font=("Segoe UI", 20, "bold"))
         y = 80
         for i, (k, v) in enumerate(value.items()):
-            self.canvas.create_rectangle(100, y + i * 50, 600, y + 40 + i * 50, fill="#fef9c3", outline="#ca8a04", width=2)
-            self.canvas.create_text(350, y + 20 + i * 50, text=f"{k} : {v}", font=("Segoe UI", 11))
+            self.canvas.create_rectangle(self.center_x-250, y + i * 50, self.center_x+250, y + 40 + i * 50, fill="#fef9c3", outline="#ca8a04", width=2)
+            self.canvas.create_text(self.center_x, y + 20 + i * 50, text=f"{k} : {v}", font=("Segoe UI", 11))
+    
+    def draw_linkedlist(self, value, value_type):
+        self.canvas.create_text(self.center_x, 40, text="Type: Linked List", font=("Segoe UI", 20, "bold"))
+        start_x = 40
+        node_width = 80
+        node_height = 60
+        spacing = 20
+        arrow_length = 30
+        y = self.center_y - node_width // 2
+
+        if len(value) > 0: 
+            self.canvas.create_text(start_x + 40, y - 20, text="Head", font=("Segoe UI", 10, "italic"), fill="#6b7280")
+
+        for i, item in enumerate(value):
+            x0 = start_x + i * (node_width + arrow_length + spacing)
+            x1 = x0 + node_width
+
+            self.canvas.create_rectangle(x0, y, x1, y + node_height, fill="#bbf7d0", outline="#16a34a", width=2)
+            self.canvas.create_text((x0 + x1) // 2, y + node_height//2, text=str(item), font=("Segoe UI", 11))
+
+            arrow_start = x1
+            arrow_end = x1 + arrow_length
+            self.canvas.create_line(arrow_start, y + node_height//2, arrow_end, y + node_height//2, arrow=tk.LAST, fill="#16a34a", width=2)
+
+        if value:
+            self.canvas.create_text(x1 + arrow_length + 20, y + node_height//2, text="None", font=("Segoe UI", 10, "italic"), fill="#6b7280")
+    
+    def draw_stack(self, value, value_type):
+        self.canvas.create_text(self.center_x, 40, text="Type: Stack (Top → Bottom)", font=("Segoe UI", 20, "bold"))
+
+        box_width = 140
+        box_height = 40
+        start_x = self.center_x - box_width // 2
+        start_y = 100
+
+        for i, item in enumerate(reversed(value)): 
+            y0 = start_y + i * (box_height + 10)
+            y1 = y0 + box_height
+            w_plus = i*10
+            self.canvas.create_rectangle(start_x - w_plus, y0, start_x + box_width + w_plus, y1, fill="#fca5a5", outline="#b91c1c", width=2)
+            self.canvas.create_text(start_x + box_width // 2, y0 + box_height // 2, text=str(item), font=("Segoe UI", 11))
+
+        top_label_x = start_x + box_width + 40
+        top_label_y = start_y + 20
+        self.canvas.create_text(top_label_x, top_label_y, text="Top", font=("Segoe UI", 10, "bold"), fill="#ef4444")
+
+        self.canvas.create_line(top_label_x - 10, top_label_y, start_x + box_width, top_label_y, arrow=tk.LAST, fill="#ef4444", width=2)
+    
+    def draw_queue(self, value, value_type):
+        self.canvas.create_text(self.center_x, 40, text="Type: Queue (Front → Rear)", font=("Segoe UI", 20, "bold"))
+
+        box_width = 80
+        box_height = 60
+        y = self.center_y - box_height // 2
+        total_width = len(value) * (box_width + 10) - 10
+        start_x = self.center_x - total_width // 2
+
+        for i, item in enumerate(value):
+            x0 = start_x + i * (box_width + 10)
+            x1 = x0 + box_width
+            self.canvas.create_rectangle(x0, y, x1, y + box_height, fill="#ddd6fe", outline="#7c3aed", width=2)
+            self.canvas.create_text((x0 + x1) // 2, y + box_height//2, text=str(item), font=("Segoe UI", 11))
+            
+            if i < len(value) - 1:
+                arrow_start = x1
+                arrow_end = x1 + 10
+                self.canvas.create_line(arrow_start, y + box_height//2, arrow_end + 10, y + 30, arrow=tk.LAST, fill="#7c3aed", width=2)
+
+        if value:
+            self.canvas.create_text(start_x - 10, y + 80, text="Front", font=("Segoe UI", 10), fill="#7c3aed")
+            self.canvas.create_text(x1 + 30, y + 80, text="Rear", font=("Segoe UI", 10), fill="#7c3aed")
+            front_arrow_x = start_x - 30
+            rear_arrow_x = x1 + 30
+
+            self.canvas.create_line(front_arrow_x, y + box_height//2, start_x, y + 30, arrow=tk.FIRST, fill="#7c3aed", width=2)
+
+            self.canvas.create_line(rear_arrow_x + 20, y + 30, x1, y + 30, arrow=tk.LAST, fill="#7c3aed", width=2)
+
+
 
 if __name__ == "__main__":
     root = tk.Tk()
