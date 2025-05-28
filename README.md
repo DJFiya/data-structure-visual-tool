@@ -22,7 +22,10 @@ A lightweight Tkinter-based GUI to visualize and typecast Python data inputs. De
 - list  
 - tuple  
 - set  
-- dict  
+- dict
+- linkedlist
+- stack
+- queue  
 
 ---
 
