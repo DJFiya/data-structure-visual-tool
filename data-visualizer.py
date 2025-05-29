@@ -2,6 +2,8 @@ import tkinter as tk
 import tkinter.ttk as ttk
 import ast
 
+from tree import TreeNode, build_binary_tree
+
 class DataVisualizer:
     def __init__(self, root):
         self.root = root
@@ -18,7 +20,7 @@ class DataVisualizer:
         self._add_label_entry("Type:", 1)
         self.type_var = tk.StringVar(value="str")
 
-        allowed_types = ["int", "float", "str", "list", "tuple", "set", "dict", "bool", "linkedlist", "stack", "queue"]
+        allowed_types = ["int", "float", "str", "list", "tuple", "set", "dict", "bool", "linkedlist", "stack", "queue", "binarytree"]
 
         self.type_combobox = ttk.Combobox(
             self.input_frame, textvariable=self.type_var,
@@ -70,7 +72,7 @@ class DataVisualizer:
         raw_value = self.value_entry.get().strip()
         type_hint = self.type_var.get().strip().lower()
 
-        allowed_types = {
+        def_types = {
             "int": int,
             "float": float,
             "str": str,
@@ -80,8 +82,8 @@ class DataVisualizer:
             "dict": dict,
             "bool": bool,
         }
-        if type_hint in allowed_types:
-            converter = allowed_types[type_hint]
+        if type_hint in def_types:
+            converter = def_types[type_hint]
         try:
             if type_hint == "bool":
                 raw = raw_value.lower().strip()
@@ -119,7 +121,7 @@ class DataVisualizer:
                     value = int(f)
                 except ValueError as e:
                     raise e
-            elif type_hint in ("linkedlist", "stack", "queue"):
+            elif type_hint in ("linkedlist", "stack", "queue", "binarytree"):
                 stripped = raw_value.strip("[](){}")
                 parts = [part.strip() for part in stripped.split(",") if part.strip()]
                 value = parts
@@ -249,7 +251,47 @@ class DataVisualizer:
 
             self.canvas.create_line(rear_arrow_x + 20, y + 30, x1, y + 30, arrow=tk.LAST, fill="#7c3aed", width=2)
 
+    def draw_binarytree(self, value, value_type):
+        self.canvas.create_text(self.center_x, 40, text="Type: Binary Tree", font=("Segoe UI", 20, "bold"))
 
+        values = [None if val.lower() == "none" else val for val in value]
+        root = build_binary_tree(values)
+        if not root:
+            return
+
+        level_height = 80
+        node_radius = 25
+
+        positions = {}
+
+        def assign_positions(node, depth, x_min, x_max):
+            if not node:
+                return
+            x = (x_min + x_max) // 2
+            y = 100 + depth * level_height
+            positions[node] = (x, y)
+            assign_positions(node.left, depth + 1, x_min, x)
+            assign_positions(node.right, depth + 1, x, x_max)
+
+        assign_positions(root, 0, self.center_x - 600, self.center_x + 600)
+
+        def draw_edges(node):
+            if not node:
+                return
+            x, y = positions[node]
+            for child in [node.left, node.right]:
+                if child:
+                    cx, cy = positions[child]
+                    self.canvas.create_line(x, y + node_radius, cx, cy - node_radius, fill="#7c3aed", width=2)
+                    draw_edges(child)
+
+        def draw_nodes():
+            for node, (x, y) in positions.items():
+                self.canvas.create_oval(x - node_radius, y - node_radius, x + node_radius, y + node_radius, fill="#ddd6fe", outline="#7c3aed", width=2)
+                self.canvas.create_text(x, y, text=str(node.val), font=("Segoe UI", 11))
+
+        draw_edges(root)
+        draw_nodes()
 
 if __name__ == "__main__":
     root = tk.Tk()
