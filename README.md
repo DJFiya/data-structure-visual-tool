@@ -27,7 +27,8 @@ A lightweight Tkinter-based GUI to visualize and typecast Python data inputs. De
 - stack
 - queue
 - binarytree
-- 2dlist  
+- 2dlist
+- range  
 
 ---
 

@@ -20,7 +20,7 @@ class DataVisualizer:
         self._add_label_entry("Type:", 1)
         self.type_var = tk.StringVar(value="str")
 
-        allowed_types = ["int", "float", "str", "list", "tuple", "set", "dict", "bool", "linkedlist", "stack", "queue", "binarytree", "2dlist"]
+        allowed_types = ["int", "float", "str", "list", "tuple", "set", "dict", "bool", "linkedlist", "stack", "queue", "binarytree", "2dlist", "range"]
 
         self.type_combobox = ttk.Combobox(
             self.input_frame, textvariable=self.type_var,
@@ -81,6 +81,7 @@ class DataVisualizer:
             "set": set,
             "dict": dict,
             "bool": bool,
+            "range": range,
         }
         if type_hint in def_types:
             converter = def_types[type_hint]
@@ -133,6 +134,18 @@ class DataVisualizer:
                     value = parsed
                 except Exception:
                     raise ValueError("Invalid input for list2d")
+            elif type_hint == "range":
+                stripped = raw_value.strip("[](){}")
+                parts = [part.strip() for part in stripped.split(",") if part.strip()]
+                print(parts)
+                if len(parts) == 1:
+                    value = range(int(parts[0]))
+                elif len(parts) == 2:
+                    value = range(int(parts[0]), int(parts[1]))
+                elif len(parts) == 3:
+                    value = range(int(parts[0]), int(parts[1]), int(parts[2]))
+                else:
+                    raise ValueError("Invalid input for range. Use start, stop[, step]")
             else:
                 value = converter(raw_value)
         except Exception as e:
@@ -337,7 +350,26 @@ class DataVisualizer:
         draw_edges(root)
         draw_nodes()
     
-    
+    def draw_range(self, value, value_type):
+        self.canvas.create_text(self.center_x, 40, text="Type: range", font=("Segoe UI", 20, "bold"))
+        items = list(value)
+        if not items:
+            self.canvas.create_text(self.center_x, self.center_y, text="Empty range", font=("Segoe UI", 14, "italic"))
+            return
+        box_width = 60
+        y = self.center_y - box_width // 2
+        max_boxes = min(len(items), 12)
+        total_width = max_boxes * (box_width + 10) - 10
+        start_x = self.center_x - total_width // 2
+
+        for i, item in enumerate(items[:max_boxes]):
+            x0 = start_x + i * (box_width + 10)
+            x1 = x0 + box_width
+            self.canvas.create_rectangle(x0, y, x1, y + 60, fill="#fde68a", outline="#b45309", width=2)
+            self.canvas.create_text((x0 + x1)//2, y + 30, text=str(item), font=("Segoe UI", 11))
+        if len(items) > max_boxes:
+            self.canvas.create_text(x1 + 40, y + 30, text="...", font=("Segoe UI", 16))
+
 
 if __name__ == "__main__":
     root = tk.Tk()
