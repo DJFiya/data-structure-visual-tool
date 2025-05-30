@@ -20,7 +20,7 @@ class DataVisualizer:
         self._add_label_entry("Type:", 1)
         self.type_var = tk.StringVar(value="str")
 
-        allowed_types = ["int", "float", "str", "list", "tuple", "set", "dict", "bool", "linkedlist", "stack", "queue", "binarytree"]
+        allowed_types = ["int", "float", "str", "list", "tuple", "set", "dict", "bool", "linkedlist", "stack", "queue", "binarytree", "2dlist"]
 
         self.type_combobox = ttk.Combobox(
             self.input_frame, textvariable=self.type_var,
@@ -125,6 +125,14 @@ class DataVisualizer:
                 stripped = raw_value.strip("[](){}")
                 parts = [part.strip() for part in stripped.split(",") if part.strip()]
                 value = parts
+            elif type_hint == "2dlist":
+                try:
+                    parsed = ast.literal_eval(raw_value)
+                    if not (isinstance(parsed, list) and all(isinstance(row, list) for row in parsed)):
+                        raise ValueError("Invalid 2D list format")
+                    value = parsed
+                except Exception:
+                    raise ValueError("Invalid input for list2d")
             else:
                 value = converter(raw_value)
         except Exception as e:
@@ -148,24 +156,52 @@ class DataVisualizer:
     def draw_list(self, value, value_type):
         self.canvas.create_text(self.center_x, 40, text=f"Type: {value_type}", font=("Segoe UI", 20, "bold"))
 
+        if isinstance(value, list) and all(isinstance(row, list) for row in value):
+            box_size = 50
+            spacing = 10
+            num_rows = len(value)
+            num_cols = max(len(row) for row in value) if num_rows > 0 else 0
+
+            total_width = num_cols * (box_size + spacing) - spacing
+            total_height = num_rows * (box_size + spacing) - spacing
+
+            start_x = self.center_x - total_width // 2
+            start_y = self.center_y - total_height // 2
+
+            for row_idx, row in enumerate(value):
+                for col_idx, item in enumerate(row):
+                    x0 = start_x + col_idx * (box_size + spacing)
+                    y0 = start_y + row_idx * (box_size + spacing)
+                    x1 = x0 + box_size
+                    y1 = y0 + box_size
+                    self.canvas.create_rectangle(x0, y0, x1, y1, fill="#bfdbfe", outline="#1d4ed8", width=2)
+                    self.canvas.create_text((x0 + x1)//2, (y0 + y1)//2, text=str(item), font=("Segoe UI", 11))
+            return
+
         box_width = 60
         y = self.center_y - box_width // 2
         max_boxes = min(len(value), 12)
         total_width = max_boxes * (box_width + 10) - 10
         start_x = self.center_x - total_width // 2
+
         for i, item in enumerate(value[:max_boxes]):
             x0 = start_x + i * (box_width + 10)
             x1 = x0 + box_width
             self.canvas.create_rectangle(x0, y, x1, y + 60, fill="#bfdbfe", outline="#1d4ed8", width=2)
             self.canvas.create_text((x0 + x1)//2, y + 30, text=str(item), font=("Segoe UI", 11))
+        
         if len(value) > max_boxes:
             self.canvas.create_text(x1 + 40, y + 30, text="...", font=("Segoe UI", 16))
+
 
     def draw_tuple(self, value, value_type):
         self.draw_list(value, "tuple")
 
     def draw_set(self, value, value_type):
         self.draw_list(list(value), "set")
+    
+    def draw_2dlist(self, value, value_type):
+        self.draw_list(value, "2dlist")
 
     def draw_dict(self, value, value_type):
         self.canvas.create_text(self.center_x, 40, text="Type: dict", font=("Segoe UI", 20, "bold"))
@@ -176,29 +212,37 @@ class DataVisualizer:
     
     def draw_linkedlist(self, value, value_type):
         self.canvas.create_text(self.center_x, 40, text="Type: Linked List", font=("Segoe UI", 20, "bold"))
-        start_x = 40
+        
         node_width = 80
         node_height = 60
         spacing = 20
         arrow_length = 30
-        y = self.center_y - node_width // 2
-
-        if len(value) > 0: 
-            self.canvas.create_text(start_x + 40, y - 20, text="Head", font=("Segoe UI", 10, "italic"), fill="#6b7280")
-
+        
+        total_width = len(value) * node_width + (len(value) - 1) * (arrow_length + spacing)
+        start_x = self.center_x - total_width // 2
+        y = self.center_y - node_height // 2  # Center vertically based on node height
+        
+        if value:
+            self.canvas.create_text(start_x + node_width // 2, y - 20, text="Head", font=("Segoe UI", 10, "italic"), fill="#6b7280")
+        
         for i, item in enumerate(value):
             x0 = start_x + i * (node_width + arrow_length + spacing)
             x1 = x0 + node_width
-
+            
+            # Draw node
             self.canvas.create_rectangle(x0, y, x1, y + node_height, fill="#bbf7d0", outline="#16a34a", width=2)
-            self.canvas.create_text((x0 + x1) // 2, y + node_height//2, text=str(item), font=("Segoe UI", 11))
-
-            arrow_start = x1
-            arrow_end = x1 + arrow_length
-            self.canvas.create_line(arrow_start, y + node_height//2, arrow_end, y + node_height//2, arrow=tk.LAST, fill="#16a34a", width=2)
-
+            self.canvas.create_text((x0 + x1) // 2, y + node_height // 2, text=str(item), font=("Segoe UI", 11))
+            
+            # Draw arrow to next node (if not last)
+            if i < len(value) - 1:
+                arrow_start = x1
+                arrow_end = x1 + arrow_length
+                self.canvas.create_line(arrow_start, y + node_height // 2, arrow_end, y + node_height // 2, arrow=tk.LAST, fill="#16a34a", width=2)
+        
         if value:
-            self.canvas.create_text(x1 + arrow_length + 20, y + node_height//2, text="None", font=("Segoe UI", 10, "italic"), fill="#6b7280")
+            # Draw "None" after the last node
+            self.canvas.create_text(x1 + 40, y + node_height // 2, text="None", font=("Segoe UI", 10, "italic"), fill="#6b7280")
+
     
     def draw_stack(self, value, value_type):
         self.canvas.create_text(self.center_x, 40, text="Type: Stack (Top → Bottom)", font=("Segoe UI", 20, "bold"))
@@ -292,6 +336,8 @@ class DataVisualizer:
 
         draw_edges(root)
         draw_nodes()
+    
+    
 
 if __name__ == "__main__":
     root = tk.Tk()
