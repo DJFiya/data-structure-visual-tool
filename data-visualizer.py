@@ -1,6 +1,7 @@
 import tkinter as tk
 import tkinter.ttk as ttk
 import ast
+import math
 
 from tree import TreeNode, build_binary_tree
 
@@ -20,7 +21,11 @@ class DataVisualizer:
         self._add_label_entry("Type:", 1)
         self.type_var = tk.StringVar(value="str")
 
-        allowed_types = ["int", "float", "str", "list", "tuple", "set", "dict", "bool", "linkedlist", "stack", "queue", "binarytree", "2dlist", "range"]
+        allowed_types = [
+            "int", "float", "str", "list", "tuple", "set", "dict", "bool",
+            "linkedlist", "stack", "queue", "binarytree", "2dlist", "range",
+            "directed_graph"
+            ]
 
         self.type_combobox = ttk.Combobox(
             self.input_frame, textvariable=self.type_var,
@@ -122,10 +127,18 @@ class DataVisualizer:
                     value = int(f)
                 except ValueError as e:
                     raise e
-            elif type_hint in ("linkedlist", "stack", "queue", "binarytree"):
+            elif type_hint in ("linkedlist", "stack", "queue", "binarytree", "directed_graph"):
                 stripped = raw_value.strip("[](){}")
                 parts = [part.strip() for part in stripped.split(",") if part.strip()]
-                value = parts
+                if type_hint == "directed_graph":
+                    try:
+                        value = ast.literal_eval(raw_value)
+                        if not (isinstance(value, list) and all(isinstance(edge, tuple) and len(edge) == 2 for edge in value)):
+                            raise ValueError("Each edge must be a tuple (from, to)")
+                    except Exception:
+                        raise ValueError("Invalid input for directed graph. Use format: [(A, B), (B, C)]")
+                else:
+                    value = parts
             elif type_hint == "2dlist":
                 try:
                     parsed = ast.literal_eval(raw_value)
@@ -137,7 +150,6 @@ class DataVisualizer:
             elif type_hint == "range":
                 stripped = raw_value.strip("[](){}")
                 parts = [part.strip() for part in stripped.split(",") if part.strip()]
-                print(parts)
                 if len(parts) == 1:
                     value = range(int(parts[0]))
                 elif len(parts) == 2:
@@ -369,6 +381,45 @@ class DataVisualizer:
             self.canvas.create_text((x0 + x1)//2, y + 30, text=str(item), font=("Segoe UI", 11))
         if len(items) > max_boxes:
             self.canvas.create_text(x1 + 40, y + 30, text="...", font=("Segoe UI", 16))
+    
+    def draw_directed_graph(self, edges, value_type):
+        self.canvas.create_text(self.center_x, 40, text="Type: Directed Graph", font=("Segoe UI", 20, "bold"))
+
+        nodes = sorted(set(n for edge in edges for n in edge))
+        num_nodes = len(nodes)
+        radius = 220
+        node_radius = 25
+        node_positions = {}
+
+        for i, node in enumerate(nodes):
+            angle = 2 * math.pi * i / num_nodes
+            x = self.center_x + int(radius * math.cos(angle))
+            y = self.center_y + int(radius * math.sin(angle))
+            node_positions[node] = (x, y)
+
+        for src, dst in edges:
+            if src not in node_positions or dst not in node_positions:
+                continue
+            x1, y1 = node_positions[src]
+            x2, y2 = node_positions[dst]
+            dx, dy = x2 - x1, y2 - y1
+            dist = math.hypot(dx, dy)
+            if dist == 0:
+                continue
+            offset_x = node_radius * dx / dist
+            offset_y = node_radius * dy / dist
+            self.canvas.create_line(
+                x1 + offset_x, y1 + offset_y, x2 - offset_x, y2 - offset_y,
+                arrow=tk.LAST, fill="#0ea5e9", width=2
+            )
+
+        for node, (x, y) in node_positions.items():
+            self.canvas.create_oval(
+                x - node_radius, y - node_radius, x + node_radius, y + node_radius,
+                fill="#cffafe", outline="#06b6d4", width=2
+            )
+            self.canvas.create_text(x, y, text=str(node), font=("Segoe UI", 11))
+
 
 
 if __name__ == "__main__":
