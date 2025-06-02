@@ -24,7 +24,7 @@ class DataVisualizer:
         allowed_types = [
             "int", "float", "str", "list", "tuple", "set", "dict", "bool",
             "linkedlist", "stack", "queue", "binarytree", "2dlist", "range",
-            "directed_graph"
+            "directed_graph", "heap"
             ]
 
         self.type_combobox = ttk.Combobox(
@@ -127,7 +127,7 @@ class DataVisualizer:
                     value = int(f)
                 except ValueError as e:
                     raise e
-            elif type_hint in ("linkedlist", "stack", "queue", "binarytree", "directed_graph"):
+            elif type_hint in ("linkedlist", "stack", "queue", "binarytree", "directed_graph", "heap"):
                 stripped = raw_value.strip("[](){}")
                 parts = [part.strip() for part in stripped.split(",") if part.strip()]
                 if type_hint == "directed_graph":
@@ -420,6 +420,52 @@ class DataVisualizer:
             )
             self.canvas.create_text(x, y, text=str(node), font=("Segoe UI", 11))
 
+    def draw_heap(self, value, value_type):
+        self.canvas.create_text(self.center_x, 40, text="Type: Heap (Min/Max)", font=("Segoe UI", 20, "bold"))
+
+        try:
+            numbers = [int(v) for v in value]
+        except ValueError:
+            self._show_error("Heap must contain only integers.")
+            return
+
+        level_height = 80
+        node_radius = 25
+
+        positions = {}
+
+        def assign_positions(index, depth, x_min, x_max):
+            if index >= len(numbers):
+                return
+            x = (x_min + x_max) // 2
+            y = 100 + depth * level_height
+            positions[index] = (x, y)
+            assign_positions(2 * index + 1, depth + 1, x_min, x)
+            assign_positions(2 * index + 2, depth + 1, x, x_max)
+
+        assign_positions(0, 0, self.center_x - 600, self.center_x + 600)
+
+        def draw_edges():
+            for i in range(len(numbers)):
+                if i in positions:
+                    x, y = positions[i]
+                    left = 2 * i + 1
+                    right = 2 * i + 2
+                    for child in (left, right):
+                        if child < len(numbers) and child in positions:
+                            cx, cy = positions[child]
+                            self.canvas.create_line(x, y + node_radius, cx, cy - node_radius, fill="#f97316", width=2)
+
+        def draw_nodes():
+            for i, val in enumerate(numbers):
+                if i in positions:
+                    x, y = positions[i]
+                    self.canvas.create_oval(x - node_radius, y - node_radius, x + node_radius, y + node_radius,
+                                            fill="#fed7aa", outline="#f97316", width=2)
+                    self.canvas.create_text(x, y, text=str(val), font=("Segoe UI", 11))
+
+        draw_edges()
+        draw_nodes()
 
 
 if __name__ == "__main__":
