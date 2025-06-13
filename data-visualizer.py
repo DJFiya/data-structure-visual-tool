@@ -3,7 +3,7 @@ import tkinter.ttk as ttk
 import ast
 import math
 
-from tree import TreeNode, build_binary_tree
+from tree import TreeNode, build_binary_tree, build_avl_tree
 
 class DataVisualizer:
     def __init__(self, root):
@@ -24,7 +24,7 @@ class DataVisualizer:
         allowed_types = [
             "int", "float", "str", "list", "tuple", "set", "dict", "bool",
             "linkedlist", "stack", "queue", "binarytree", "2dlist", "range",
-            "directed_graph", "heap"
+            "directed_graph", "heap", "avl_tree"
             ]
 
         self.type_combobox = ttk.Combobox(
@@ -127,7 +127,7 @@ class DataVisualizer:
                     value = int(f)
                 except ValueError as e:
                     raise e
-            elif type_hint in ("linkedlist", "stack", "queue", "binarytree", "directed_graph", "heap"):
+            elif type_hint in ("linkedlist", "stack", "queue", "binarytree", "directed_graph", "heap", "avl_tree"):
                 stripped = raw_value.strip("[](){}")
                 parts = [part.strip() for part in stripped.split(",") if part.strip()]
                 if type_hint == "directed_graph":
@@ -465,6 +465,52 @@ class DataVisualizer:
                     self.canvas.create_text(x, y, text=str(val), font=("Segoe UI", 11))
 
         draw_edges()
+        draw_nodes()
+
+    def draw_avl_tree(self, value, value_type):
+        self.canvas.create_text(self.center_x, 40, text="Type: AVL Tree", font=("Segoe UI", 20, "bold"))
+
+        try:
+            values = [int(v) for v in value if v.lower() != "none"]
+        except Exception:
+            self._show_error("AVL Tree must contain only integers.")
+            return
+
+        root = build_avl_tree(values)
+        if not root:
+            return
+
+        level_height = 80
+        node_radius = 25
+        positions = {}
+
+        def assign_positions(node, depth, x_min, x_max):
+            if not node:
+                return
+            x = (x_min + x_max) // 2
+            y = 100 + depth * level_height
+            positions[node] = (x, y)
+            assign_positions(node.left, depth + 1, x_min, x)
+            assign_positions(node.right, depth + 1, x, x_max)
+
+        assign_positions(root, 0, self.center_x - 600, self.center_x + 600)
+
+        def draw_edges(node):
+            if not node:
+                return
+            x, y = positions[node]
+            for child in [node.left, node.right]:
+                if child:
+                    cx, cy = positions[child]
+                    self.canvas.create_line(x, y + node_radius, cx, cy - node_radius, fill="#10b981", width=2)
+                    draw_edges(child)
+
+        def draw_nodes():
+            for node, (x, y) in positions.items():
+                self.canvas.create_oval(x - node_radius, y - node_radius, x + node_radius, y + node_radius, fill="#d1fae5", outline="#10b981", width=2)
+                self.canvas.create_text(x, y, text=str(node.val), font=("Segoe UI", 11))
+
+        draw_edges(root)
         draw_nodes()
 
 
